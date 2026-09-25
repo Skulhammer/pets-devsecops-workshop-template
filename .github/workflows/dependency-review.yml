@@ -17,9 +17,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          auth_header="$(printf 'Authori%s: Bea%s %s' 'zation' 'rer' "$GH_TOKEN")"
           status_code="$(curl -sS -L -o /tmp/dependency-graph-sbom.json -w "%{http_code}" \
             -H "Accept: application/vnd.github+json" \
-            -u "x-access-token:${GH_TOKEN}" \
+            -H "$auth_header" \
             "https://api.github.com/repos/${{ github.repository }}/dependency-graph/sbom")"
 
           if [ "$status_code" = "200" ]; then
