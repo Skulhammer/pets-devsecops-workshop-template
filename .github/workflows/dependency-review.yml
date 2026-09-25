@@ -13,7 +13,44 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      - id: dependency-graph-check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status_code="$(curl -sS --max-redirs 0 -o /tmp/dependency-graph-sbom.json -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "authorization: bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${{ github.repository }}/dependency-graph/sbom")"
+
+          if [ "$status_code" = "200" ]; then
+            echo "supported=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          response_message="$(jq -r '.message // ""' /tmp/dependency-graph-sbom.json 2>/dev/null || true)"
+          unsupported_dependency_graph=false
+          permission_or_auth_issue=false
+
+          if echo "$response_message" | grep -Eiq 'dependency review is not supported|dependency graph is not enabled|dependency graph is disabled|dependency graph|sbom|software bill of materials|not enabled'; then
+            unsupported_dependency_graph=true
+          fi
+
+          if echo "$response_message" | grep -Eiq 'bad credentials|resource not accessible|requires authentication|forbidden|rate limit'; then
+            permission_or_auth_issue=true
+          fi
+
+          if [[ "$status_code" =~ ^(403|404)$ ]] && [ "$unsupported_dependency_graph" = "true" ] && [ "$permission_or_auth_issue" = "false" ]; then
+            echo "::warning::Dependency graph is disabled or unsupported for this repository; skipping dependency review."
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::error::Unable to determine dependency graph support (HTTP ${status_code})."
+          exit 1
+
+      - if: steps.dependency-graph-check.outputs.supported == 'true'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
           fail-on-scopes: runtime, development, unknown
