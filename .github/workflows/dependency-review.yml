@@ -30,16 +30,17 @@ jobs:
 
           response_message="$(jq -r '.message // ""' /tmp/dependency-graph-sbom.json 2>/dev/null || true)"
           unsupported_dependency_graph=false
+          permission_or_auth_issue=false
 
-          case "$response_message" in
-            "Dependency review is not supported on this repository."*|\
-            "Dependency graph is not enabled for this repository."*|\
-            "Dependency graph is disabled for this repository."*)
-              unsupported_dependency_graph=true
-              ;;
-          esac
+          if echo "$response_message" | grep -Eiq 'dependency review is not supported|dependency graph is not enabled|dependency graph is disabled|dependency graph|sbom|software bill of materials|not enabled'; then
+            unsupported_dependency_graph=true
+          fi
 
-          if [[ "$status_code" =~ ^(403|404)$ ]] && [ "$unsupported_dependency_graph" = "true" ]; then
+          if echo "$response_message" | grep -Eiq 'bad credentials|resource not accessible|requires authentication|forbidden|rate limit'; then
+            permission_or_auth_issue=true
+          fi
+
+          if [[ "$status_code" =~ ^(403|404)$ ]] && [ "$unsupported_dependency_graph" = "true" ] && [ "$permission_or_auth_issue" = "false" ]; then
             echo "::warning::Dependency graph is disabled or unsupported for this repository; skipping dependency review."
             echo "supported=false" >> "$GITHUB_OUTPUT"
             exit 0
