@@ -18,7 +18,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          status_code="$(curl -sS -o /tmp/dependency-graph-sbom.json -w "%{http_code}" \
+          status_code="$(curl -sS --max-redirs 0 -o /tmp/dependency-graph-sbom.json -w "%{http_code}" \
             -H "Accept: application/vnd.github+json" \
             -H "authorization: bearer ${GH_TOKEN}" \
             "https://api.github.com/repos/${{ github.repository }}/dependency-graph/sbom")"
