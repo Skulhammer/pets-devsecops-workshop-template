@@ -30,13 +30,7 @@ jobs:
 
           response_message="$(jq -r '.message // ""' /tmp/dependency-graph-sbom.json 2>/dev/null || true)"
 
-          if [ "$status_code" = "404" ]; then
-            echo "::warning::Dependency graph is unavailable for this repository; skipping dependency review."
-            echo "supported=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "$status_code" = "403" ] && echo "$response_message" | grep -Eiq 'dependency graph|dependency review is not supported'; then
+          if [[ "$status_code" =~ ^(403|404)$ ]] && echo "$response_message" | grep -Eiq 'dependency graph|dependency review is not supported|not enabled'; then
             echo "::warning::Dependency graph is disabled or unsupported for this repository; skipping dependency review."
             echo "supported=false" >> "$GITHUB_OUTPUT"
             exit 0
