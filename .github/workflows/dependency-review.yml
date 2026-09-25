@@ -29,8 +29,17 @@ jobs:
           fi
 
           response_message="$(jq -r '.message // ""' /tmp/dependency-graph-sbom.json 2>/dev/null || true)"
+          unsupported_dependency_graph=false
 
-          if [[ "$status_code" =~ ^(403|404)$ ]] && echo "$response_message" | grep -Eiq 'dependency graph|dependency review is not supported|not enabled'; then
+          case "$response_message" in
+            "Dependency review is not supported on this repository."*|\
+            "Dependency graph is not enabled for this repository."*|\
+            "Dependency graph is disabled for this repository."*)
+              unsupported_dependency_graph=true
+              ;;
+          esac
+
+          if [[ "$status_code" =~ ^(403|404)$ ]] && [ "$unsupported_dependency_graph" = "true" ]; then
             echo "::warning::Dependency graph is disabled or unsupported for this repository; skipping dependency review."
             echo "supported=false" >> "$GITHUB_OUTPUT"
             exit 0
