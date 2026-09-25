@@ -46,8 +46,7 @@ jobs:
             exit 0
           fi
 
-          echo "::error::Unable to determine dependency graph support (HTTP ${status_code})."
-          cat /tmp/dependency-graph-sbom.json || true
+          echo "::error::Unable to determine dependency graph support (HTTP ${status_code}). API message: ${response_message:-<none>}."
           exit 1
 
       - if: steps.dependency-graph-check.outputs.supported == 'true'
